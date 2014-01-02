@@ -12,10 +12,5 @@ attack_cc: attack.c
 attack_cc_header: attack.c
 	$(CC) $(CTAGS) -DATTACK_CC_HEADER $< -o $@
 
-userver: 
-	$(MAKE) -C userver-0.8.0
-	mv userver-0.8.0/userver .
-
 clean:
 	rm -rf attack_normal attack_cc attack_cc_header userver options.xml userver.pid
-	$(MAKE) -C userver-0.8.0 clean
