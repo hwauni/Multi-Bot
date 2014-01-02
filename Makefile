@@ -1,7 +1,7 @@
 CC		= cc
 CTAGS		= -Wall
 
-all: attack_normal attack_cc attack_cc_header userver
+all: attack_normal attack_cc attack_cc_header
 
 attack_normal: attack.c
 	$(CC) $(CTAGS) -DATTACK_NORMAL $< -o $@
