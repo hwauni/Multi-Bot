@@ -483,9 +483,9 @@ int ctx_socket(int domain, int type, int protocol)
 int ctx_close(int fd)
 {
     int rc = 0;
-    struct epoll_event events;
+    //struct epoll_event events;
 
-    events.events = EPOLLIN;
+    //events.events = EPOLLIN;
     if(epoll_ctl(g_epoll_fd, EPOLL_CTL_DEL, fd, NULL) < 0) {
         die("epoll_ctl");
     }
@@ -542,9 +542,9 @@ void stat(int signum) {
     int ctime=time(NULL);
     printf(" ---- overall statistics ------------------------------------------------\n");
     printf("   packets sent:          %d\n",outcount);
-    printf("   bytes sent:            %d\n",outcount * strlen(attack_payload[attack_idx]));
+    printf("   bytes sent:            %d\n",(int)(outcount * strlen(attack_payload[attack_idx])));
     printf("   seconds active:        %d\n",ctime-starttime);
-    printf("   average bytes/second:  %d\n",(outcount * strlen(attack_payload[attack_idx])/(ctime-starttime)));
+    printf("   average bytes/second:  %d\n",((int)(outcount * strlen(attack_payload[attack_idx])/(ctime-starttime))));
     printf("   average packets/second:%d\n",outcount/(ctime-starttime));
     printf("\n");
 
