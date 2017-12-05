@@ -780,6 +780,7 @@ void help()
 
     //printf("usage: %s srv_ip srv_port start_ip #ip #port syn/s dev\n", argv[0]);
     printf("example: multi_bot -m cc -s 18.0.0.1 -p 80 -i 9.1.1.1 -n 100 -o 10 -x 100 -d eth0\n");
+    printf("example: multi_bot -m cc -s 10.10.2.242 -p 80 -i 10.10.2.243 -n 100 -o 10 -x 100 -d eth1\n");
 }
 
 int main(int argc, char *argv[])
